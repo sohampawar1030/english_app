@@ -1,6 +1,0 @@
-node_modules
-.git
-*.md
-.env
-server/.env
-aoo/node_modules
