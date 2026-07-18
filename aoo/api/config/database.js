@@ -6,7 +6,7 @@ import { dirname, resolve } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: resolve(__dirname, '../../../.env') });
+dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST,

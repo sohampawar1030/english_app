@@ -7,7 +7,7 @@ import { dirname, resolve } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: resolve(__dirname, '../../../.env') });
+dotenv.config({ path: resolve(__dirname, '../../.env') });
 
 const words = [
   { word: 'ubiquitous', ipa: '/juːˈbɪk.wɪ.təs/', marathi: 'सर्वव्यापी', hindi: 'सर्वव्यापी', english: 'Present, appearing, or found everywhere', synonyms: ['omnipresent', 'universal', 'pervasive'], antonyms: ['rare', 'scarce'], root: 'Latin "ubique" meaning everywhere', family: ['ubiquity', 'ubiquitously'], pos: 'adjective', difficulty: 'advanced', category: 'general', examples: ['Smartphones have become ubiquitous in modern society.', 'The ubiquitous coffee shop can be found on every corner.'] },
