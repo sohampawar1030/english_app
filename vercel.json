@@ -1,5 +1,6 @@
 {
-  "buildCommand": "cd aoo && npx vite build",
+  "installCommand": "npm install --prefix server && npm install --prefix aoo",
+  "buildCommand": "npx --prefix aoo vite build",
   "outputDirectory": "aoo/dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api" },
