@@ -1,6 +1,5 @@
 {
-  "rootDirectory": "aoo",
-  "installCommand": "npm install && npm install --prefix ../server",
+  "installCommand": "npm install && npm --prefix ../server install",
   "buildCommand": "npx vite build",
   "outputDirectory": "dist",
   "rewrites": [
