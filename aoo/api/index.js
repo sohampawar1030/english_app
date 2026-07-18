@@ -1,5 +1,5 @@
-import app from '../../server/src/app.js';
-import { startScheduler, cleanupActivity } from '../../server/src/services/scheduler.js';
+import app from '../server/src/app.js';
+import { startScheduler, cleanupActivity } from '../server/src/services/scheduler.js';
 
 app.post('/api/cron/cleanup-activity', async (req, res) => {
   const auth = req.headers.authorization;

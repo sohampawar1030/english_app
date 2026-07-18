@@ -4,13 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n BE,FE -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "node server/src/index.js",
-    "dev:client": "cd aoo && npx vite --host",
+    "dev": "cd aoo && npm run dev",
     "build": "cd aoo && npx vite build",
-    "start": "node server/src/index.js",
-    "db:init": "node server/src/config/initDb.js",
-    "db:seed": "node server/src/config/seed.js"
+    "start": "cd aoo && node server/src/index.js",
+    "db:init": "cd aoo && node server/src/config/initDb.js",
+    "db:seed": "cd aoo && node server/src/config/seed.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

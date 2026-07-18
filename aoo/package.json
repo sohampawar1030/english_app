@@ -4,12 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n BE,FE -c cyan,magenta \"node ../server/src/index.js\" \"vite\"",
-    "dev:be": "node ../server/src/index.js",
+    "dev": "concurrently -n BE,FE -c cyan,magenta \"node server/src/index.js\" \"vite\"",
+    "dev:be": "node server/src/index.js",
     "dev:fe": "vite",
     "build": "vite build",
-    "postinstall": "cd ../server && npm install",
-    "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
