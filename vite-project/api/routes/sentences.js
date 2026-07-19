@@ -3,11 +3,18 @@ import db from '../config/database.js'
 
 const router = Router()
 
+const AI_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions'
+
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
+  if (!process.env.DEEPSEEK_API_KEY) {
+    console.error('[AI] DEEPSEEK_API_KEY not set in environment')
+    return { choices: [], error: 'API key not configured' }
+  }
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 25000)
+  const timer = setTimeout(() => controller.abort(), 50000)
   try {
-    const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+    console.error('[AI] Sending request to', AI_ENDPOINT, 'model:', model)
+    const resp = await fetch(AI_ENDPOINT, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -17,10 +24,15 @@ async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 40
       body: JSON.stringify({ model, messages, max_tokens: maxTokens })
     })
     clearTimeout(timer)
+    if (!resp.ok) {
+      console.error('[AI] HTTP', resp.status, await resp.text())
+      return { choices: [], error: 'HTTP ' + resp.status }
+    }
     return resp.json()
-  } catch {
+  } catch (err) {
     clearTimeout(timer)
-    return { choices: [] }
+    console.error('[AI] Error:', err?.message || err)
+    return { choices: [], error: err?.message || 'unknown' }
   }
 }
 
@@ -41,53 +53,6 @@ async function translateToMarathi(text) {
   }
 }
 
-const FALLBACK = {
-  reallife: [
-    "I wake up at 6 AM every day.", "I brush my teeth before breakfast.",
-    "I take a shower in the morning.", "I eat lunch at 1 PM.",
-    "I go to the market on Sundays.", "I meet my friends every weekend.",
-    "I watch TV after dinner.", "I read books before sleeping.",
-    "I call my mother every evening.", "I drink coffee in the morning.",
-    "I take the bus to work.", "I cook dinner for my family.",
-    "I go for a walk in the park.", "I listen to music while working.",
-    "I clean my room on Saturdays.", "I water the plants daily.",
-    "I play cricket with my neighbours.", "I visit my grandparents every month.",
-    "I study English every night.", "I save money for my future.",
-    "I help my younger brother with homework.", "I buy vegetables from the street vendor.",
-    "I wear a sweater when it is cold.", "I open the window for fresh air.",
-    "I charge my phone before sleeping.", "I lock the door before leaving.",
-    "I wish my friends on their birthdays.", "I take medicine when I am sick.",
-    "I check my email in the morning.", "I feed the stray dogs near my house.",
-    "I fold my clothes after washing.", "I turn off the lights to save electricity.",
-    "I wait for the train at the station.", "I carry an umbrella when it rains.",
-    "I share my food with my sister.", "I learn new things from the internet.",
-    "I exercise for 30 minutes daily.", "I write in my diary every night.",
-    "I smile at strangers when I walk.", "I thank people who help me."
-  ],
-  corporate: [
-    "Please find the attached report.", "Let me know if you have any questions.",
-    "I will follow up on this issue.", "Can we schedule a meeting for tomorrow?",
-    "Thank you for your prompt response.", "Please review the document by EOD.",
-    "I have cc'd the relevant stakeholders.", "Let's circle back on this later.",
-    "We need to align on the strategy.", "I will send you the revised draft.",
-    "Could you please provide an update?", "The deadline has been extended by a week.",
-    "I appreciate your hard work on this.", "Let me loop in the team for input.",
-    "Please prioritize this task.", "I have attached the minutes of the meeting.",
-    "We need to discuss the budget allocation.", "Can you brief me on the project status?",
-    "Let's take this offline.", "I will revert with my feedback shortly.",
-    "The client has approved the proposal.", "We are on track to meet the deadline.",
-    "Please ensure all deliverables are submitted.", "I have scheduled a call with the vendor.",
-    "Let me know your availability for next week.", "We need to streamline the process.",
-    "I have updated the spreadsheet with new data.", "Could you double-check the numbers?",
-    "Please acknowledge receipt of this email.", "Let's have a quick stand-up meeting.",
-    "I will take ownership of this task.", "We should leverage our strengths.",
-    "The quarterly review is scheduled for Friday.", "Please submit your timesheet by 5 PM.",
-    "I have forwarded the email to the concerned department.", "Let me escalate this to management.",
-    "We need to mitigate the risks involved.", "I will prepare the presentation slides.",
-    "The meeting has been rescheduled to 3 PM.", "Thank you for your cooperation."
-  ]
-}
-
 router.post('/generate', async (req, res, next) => {
   try {
     const { type = 'reallife', model = 'deepseek-v4-flash-free' } = req.body
@@ -102,11 +67,10 @@ router.post('/generate', async (req, res, next) => {
       { role: 'user', content: prompt }
     ], model, 8000)
 
-    const content = data.choices?.[0]?.message?.content || '[]'
+    const content = data.choices?.[0]?.message?.content || data.error || '[]'
+    if (!content || content === '[]') return res.status(500).json({ error: 'AI generation failed: ' + (data.error || 'No response from API') })
     let sentences = parseJSON(content) || []
-    if (!Array.isArray(sentences) || sentences.length === 0) {
-      sentences = FALLBACK[type] || FALLBACK.reallife
-    }
+    if (!Array.isArray(sentences) || sentences.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
     if (sentences.length > 40) sentences = sentences.slice(0, 40)
 
     const result = []
