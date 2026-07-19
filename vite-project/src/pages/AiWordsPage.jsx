@@ -4,11 +4,13 @@ import { ModelSelector, TenseCard } from '../components/VocabShared'
 export default function AiWordsPage({ myWordSet, onAdded }) {
   const [words, setWords] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [genType, setGenType] = useState(null)
   const [model, setModel] = useState('deepseek-v4-flash-free')
 
   async function generate(type) {
     setLoading(true)
+    setError('')
     setGenType(type)
     try {
       const res = await fetch('/api/words/ai-today', {
@@ -16,8 +18,10 @@ export default function AiWordsPage({ myWordSet, onAdded }) {
         body: JSON.stringify({ model, type })
       })
       const data = await res.json()
+      if (!res.ok) { setError(data.error || 'AI generation failed'); setWords([]); return }
       setWords(Array.isArray(data) ? data : [])
-    } catch {} finally { setLoading(false) }
+      if (!Array.isArray(data)) setError('Invalid response')
+    } catch (e) { setError(e.message) } finally { setLoading(false) }
   }
 
   return (
@@ -36,6 +40,7 @@ export default function AiWordsPage({ myWordSet, onAdded }) {
         </button>
       </div>
       {loading && <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>AI is generating 30 {genType === 'corporate' ? 'corporate' : 'real-life'} words...</p>}
+      {error && <p style={{ color: '#dc2626', fontSize: '14px', marginBottom: '12px', padding: '8px 12px', background: '#fef2f2', borderRadius: '6px' }}>{error}</p>}
       {!loading && words.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <p style={{ fontSize: '13px', color: '#9333ea', fontWeight: 600, marginBottom: '4px' }}>{genType === 'corporate' ? 'Corporate' : 'Real Life'} Words — {words.length}</p>

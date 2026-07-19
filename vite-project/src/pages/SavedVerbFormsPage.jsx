@@ -32,6 +32,7 @@ function VCell({ label, verb, form, word }) {
         body: JSON.stringify({ word, verb, form, model })
       })
       const data = await res.json()
+      if (!res.ok) { setSentences([]); return }
       setSentences(data.sentences || [])
     } catch {} finally { setLoading(false) }
   }
@@ -97,6 +98,7 @@ export default function SavedVerbFormsPage() {
   const [newVerb, setNewVerb] = useState('')
   const [genModel, setGenModel] = useState(MODELS[0].id)
   const [genLoading, setGenLoading] = useState(false)
+  const [genError, setGenError] = useState('')
   const [preview, setPreview] = useState(null)
   const [saving, setSaving] = useState(false)
   const [page, setPage] = useState(1)
@@ -122,14 +124,17 @@ export default function SavedVerbFormsPage() {
     e.preventDefault()
     if (!newVerb.trim()) return
     setGenLoading(true)
+    setGenError('')
     setPreview(null)
     try {
       const res = await fetch('/api/words/verb-forms/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ verb: newVerb.trim(), model: genModel })
       })
-      if (res.ok) setPreview(await res.json())
-    } catch {} finally { setGenLoading(false) }
+      const data = await res.json()
+      if (!res.ok) { setGenError(data.error || 'Generation failed'); return }
+      setPreview(data)
+    } catch (e) { setGenError(e.message) } finally { setGenLoading(false) }
   }
 
   async function handleSave() {
@@ -170,6 +175,7 @@ export default function SavedVerbFormsPage() {
           {genLoading ? 'Generating...' : 'Generate'}
         </button>
       </form>
+      {genError && <p style={{ color: '#dc2626', fontSize: '14px', marginBottom: '12px', padding: '8px 12px', background: '#fef2f2', borderRadius: '6px' }}>{genError}</p>}
 
       {preview && (
         <div style={{ background: '#faf5ff', border: '1px solid #d8b4fe', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>

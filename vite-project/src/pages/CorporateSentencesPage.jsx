@@ -8,6 +8,7 @@ export default function CorporateSentencesPage() {
   const [saved, setSaved] = useState([])
   const [generated, setGenerated] = useState([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [model, setModel] = useState('deepseek-v4-flash-free')
   const [manual, setManual] = useState('')
   const [manualMr, setManualMr] = useState('')
@@ -47,14 +48,17 @@ export default function CorporateSentencesPage() {
 
   async function generate() {
     setLoading(true)
+    setError('')
     try {
       const res = await fetch('/api/sentences/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'corporate', model })
       })
       const data = await res.json()
+      if (!res.ok) { setError(data.error || 'Generation failed'); setGenerated([]); return }
       setGenerated(Array.isArray(data) ? data : [])
-    } catch {} finally { setLoading(false) }
+      if (!Array.isArray(data)) setError('Invalid response')
+    } catch (e) { setError(e.message) } finally { setLoading(false) }
   }
 
   async function addSentence(sentence, translation) {
@@ -165,6 +169,7 @@ export default function CorporateSentencesPage() {
       </div>
 
       {loading ? <p style={{ fontSize: '13px', color: '#666', marginBottom: '12px' }}>AI is generating 40 corporate sentences...</p> : null}
+      {error && <p style={{ color: '#dc2626', fontSize: '14px', marginBottom: '12px', padding: '8px 12px', background: '#fef2f2', borderRadius: '6px' }}>{error}</p>}
 
       {generated.length > 0
         ? <div style={{ marginBottom: '24px' }}>
