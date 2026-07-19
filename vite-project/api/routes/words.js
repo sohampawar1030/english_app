@@ -11,12 +11,56 @@ const MODELS = {
   'mimo-v2.5-free': 'MiMo-V2.5 Free',
   'hy3-free': 'Hy3 Free',
   'nemotron-3-ultra-free': 'Nemotron 3 Ultra Free',
-  'north-mini-code-free': 'North Mini Code Free'
+  'north-mini-code-free': 'North Mini Code Free',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
+  'gemini-2.0-flash-lite': 'Gemini 2.0 Flash Lite',
+  'gemini-1.5-pro': 'Gemini 1.5 Pro'
 }
 
 const AI_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions'
 
+async function callGemini(messages, model, maxTokens) {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) {
+    console.error('[Gemini] GEMINI_API_KEY not set')
+    return { choices: [], error: 'Gemini API key not configured' }
+  }
+  let systemInstruction, contents = []
+  for (const m of messages) {
+    if (m.role === 'system') systemInstruction = { parts: [{ text: m.content }] }
+    else contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })
+  }
+  const body = { contents, generationConfig: { maxOutputTokens: maxTokens } }
+  if (systemInstruction) body.systemInstruction = systemInstruction
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 55000)
+  try {
+    console.error('[Gemini] Sending to model:', model)
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
+      body: JSON.stringify(body)
+    })
+    clearTimeout(timer)
+    if (!resp.ok) {
+      const text = await resp.text()
+      console.error('[Gemini] HTTP', resp.status, text)
+      return { choices: [], error: 'Gemini HTTP ' + resp.status + ': ' + text }
+    }
+    const json = await resp.json()
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    return { choices: [{ message: { content: text } }] }
+  } catch (err) {
+    clearTimeout(timer)
+    console.error('[Gemini] Error:', err?.message || err)
+    return { choices: [], error: err?.message || 'unknown' }
+  }
+}
+
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
+  if (model.startsWith('gemini-')) return callGemini(messages, model, maxTokens)
   if (!process.env.DEEPSEEK_API_KEY) {
     console.error('[AI] DEEPSEEK_API_KEY not set in environment')
     return { choices: [], error: 'API key not configured' }
@@ -127,26 +171,10 @@ router.post('/tense', async (req, res, next) => {
     let tenses = generateTenses(word)
 
     try {
-      const ac = new AbortController()
-      const timer = setTimeout(() => ac.abort(), 45000)
-      const resp = await fetch(AI_ENDPOINT, {
-        method: 'POST',
-        signal: ac.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + process.env.DEEPSEEK_API_KEY
-        },
-        body: JSON.stringify({
-          model: 'deepseek-v4-flash-free',
-          messages: [
-            { role: 'system', content: 'Output ONLY a JSON array. No other text.' },
-            { role: 'user', content: `Generate 12 short example sentences for the word "${word}". One per tense. Return JSON: [{"tense":"Present Simple","sentence":"..."}, ...]` }
-          ],
-          max_tokens: 2000
-        })
-      })
-      clearTimeout(timer)
-      const data = await resp.json()
+      const data = await callAI([
+        { role: 'system', content: 'Output ONLY a JSON array. No other text.' },
+        { role: 'user', content: `Generate 12 short example sentences for the word "${word}". One per tense. Return JSON: [{"tense":"Present Simple","sentence":"..."}, ...]` }
+      ], 'deepseek-v4-flash-free', 2000)
       const aiTenses = JSON.parse(data.choices?.[0]?.message?.content || '[]')
       if (Array.isArray(aiTenses) && aiTenses.length === 12) {
         tenses = aiTenses

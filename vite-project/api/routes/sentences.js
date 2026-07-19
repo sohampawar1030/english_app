@@ -5,7 +5,48 @@ const router = Router()
 
 const AI_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions'
 
+async function callGemini(messages, model, maxTokens) {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) {
+    console.error('[Gemini] GEMINI_API_KEY not set')
+    return { choices: [], error: 'Gemini API key not configured' }
+  }
+  let systemInstruction, contents = []
+  for (const m of messages) {
+    if (m.role === 'system') systemInstruction = { parts: [{ text: m.content }] }
+    else contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })
+  }
+  const body = { contents, generationConfig: { maxOutputTokens: maxTokens } }
+  if (systemInstruction) body.systemInstruction = systemInstruction
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 55000)
+  try {
+    console.error('[Gemini] Sending to model:', model)
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
+      body: JSON.stringify(body)
+    })
+    clearTimeout(timer)
+    if (!resp.ok) {
+      const text = await resp.text()
+      console.error('[Gemini] HTTP', resp.status, text)
+      return { choices: [], error: 'Gemini HTTP ' + resp.status + ': ' + text }
+    }
+    const json = await resp.json()
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    return { choices: [{ message: { content: text } }] }
+  } catch (err) {
+    clearTimeout(timer)
+    console.error('[Gemini] Error:', err?.message || err)
+    return { choices: [], error: err?.message || 'unknown' }
+  }
+}
+
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
+  if (model.startsWith('gemini-')) return callGemini(messages, model, maxTokens)
   if (!process.env.DEEPSEEK_API_KEY) {
     console.error('[AI] DEEPSEEK_API_KEY not set in environment')
     return { choices: [], error: 'API key not configured' }
