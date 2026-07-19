@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { MODELS } from '../components/VocabShared'
+import Pagination from '../components/Pagination'
 
 const cellStyle = { padding: '8px 12px', fontSize: '13px', borderBottom: '1px solid #e5e7eb', textAlign: 'left' }
 const thStyle = { ...cellStyle, fontWeight: 700, color: '#555', background: '#f9fafb', fontSize: '12px', textTransform: 'uppercase', borderBottom: '2px solid #e5e7eb' }
@@ -98,13 +99,24 @@ export default function SavedVerbFormsPage() {
   const [genLoading, setGenLoading] = useState(false)
   const [preview, setPreview] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetch('/api/words/verb-forms')
+  useEffect(() => { fetchVerbs() }, [page])
+
+  function fetchVerbs() {
+    setLoading(true)
+    fetch(`/api/words/verb-forms?page=${page}&limit=10`)
       .then(r => r.json())
-      .then(setVerbs)
-      .catch(() => {})
-  }, [])
+      .then(res => {
+        const list = Array.isArray(res) ? res : (res.data || [])
+        setVerbs(list)
+        setTotalPages(Array.isArray(res) ? 1 : (res.totalPages || 1))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }
 
   async function handleGenerate(e) {
     e.preventDefault()
@@ -129,10 +141,9 @@ export default function SavedVerbFormsPage() {
         body: JSON.stringify(preview)
       })
       if (res.ok) {
-        const saved = await res.json()
-        setVerbs(prev => [saved, ...prev])
         setPreview(null)
         setNewVerb('')
+        setPage(1); fetchVerbs()
       }
     } catch {} finally { setSaving(false) }
   }
@@ -141,6 +152,7 @@ export default function SavedVerbFormsPage() {
     await fetch(`/api/words/verb-forms/${id}`, { method: 'DELETE' })
     setVerbs(prev => prev.filter(v => v.id !== id))
   }
+
 
   return (
     <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
@@ -192,7 +204,7 @@ export default function SavedVerbFormsPage() {
         </div>
       )}
 
-      {verbs.length === 0 ? (
+      {loading ? <p>Loading...</p> : verbs.length === 0 ? (
         <p style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>No verb forms saved yet.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -222,6 +234,7 @@ export default function SavedVerbFormsPage() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

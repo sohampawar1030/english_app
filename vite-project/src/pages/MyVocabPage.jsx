@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import Pagination from '../components/Pagination'
 
 const cellStyle = { padding: '8px 12px', fontSize: '13px', borderBottom: '1px solid #e5e7eb', textAlign: 'left' }
 const thStyle = { ...cellStyle, fontWeight: 700, color: '#555', background: '#f9fafb', fontSize: '12px', textTransform: 'uppercase', borderBottom: '2px solid #e5e7eb' }
@@ -9,13 +10,23 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   const [word, setWord] = useState('')
   const [meaning, setMeaning] = useState('')
   const timerRef = useRef(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
-  useEffect(() => {
-    fetch('/api/words')
+  useEffect(() => { fetchWords() }, [page])
+
+  function fetchWords() {
+    setLoading(true)
+    fetch(`/api/words?page=${page}&limit=10`)
       .then(r => r.json())
-      .then(data => { setWords(data); setLoading(false) })
+      .then(res => {
+        const list = Array.isArray(res) ? res : (res.data || [])
+        setWords(list)
+        setTotalPages(Array.isArray(res) ? 1 : (res.totalPages || 1))
+        setLoading(false)
+      })
       .catch(() => setLoading(false))
-  }, [])
+  }
 
   function handleWordChange(e) {
     const val = e.target.value
@@ -39,10 +50,9 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
       body: JSON.stringify({ word, meaning })
     })
     if (res.ok) {
-      const newWord = await res.json()
-      setWords(prev => [newWord, ...prev])
       onAdded(word.toLowerCase())
       setWord(''); setMeaning('')
+      setPage(1); fetchWords()
     }
   }
 
@@ -90,6 +100,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
     </div>

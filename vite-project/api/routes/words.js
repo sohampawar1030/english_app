@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import pool from '../config/database.js'
-import { generate } from 'random-words'
+import wordsArray from 'an-array-of-english-words'
 
 const router = Router()
 
@@ -140,17 +140,23 @@ router.post('/tense', async (req, res, next) => {
 
 router.post('/ai-today', async (req, res, next) => {
   try {
-    const { model = 'deepseek-v4-flash-free' } = req.body
+    const { model = 'deepseek-v4-flash-free', type = 'reallife' } = req.body
+    const isCorporate = type === 'corporate'
+    const count = 30
+
+    const prompt = isCorporate
+      ? `Generate ${count} English corporate/business words (verbs, adjectives, adverbs — NO nouns like "company", "manager"). Return: [{"word":"negotiate","meaning":"वाटाघाटी करणे"}, ...]`
+      : `Generate ${count} real-life everyday English words (verbs, adjectives, adverbs — NO nouns like "apple", "car"). Return: [{"word":"run","meaning":"धावणे"}, ...]`
 
     const data = await callAI([
       { role: 'system', content: 'Output ONLY a JSON array of objects with keys "word" and "meaning". No other text.' },
-      { role: 'user', content: 'Generate 20 random English words with their Marathi meanings. Return: [{"word":"apple","meaning":"सफरचंद"}, ...]' }
-    ], model, 2000)
+      { role: 'user', content: prompt }
+    ], model, 3000)
 
     const content = data.choices?.[0]?.message?.content || '[]'
     let words = parseJSON(content) || []
     if (!Array.isArray(words)) words = []
-    if (words.length > 20) words = words.slice(0, 20)
+    if (words.length > count) words = words.slice(0, count)
 
     const result = []
     for (const w of words) {
@@ -200,8 +206,12 @@ router.post('/verb-forms/ai', async (req, res, next) => {
 
 router.get('/verb-forms', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM verb_forms ORDER BY created_at DESC')
-    res.json(rows)
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10))
+    const offset = (page - 1) * limit
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM verb_forms')
+    const [rows] = await pool.query('SELECT * FROM verb_forms ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    res.json({ data: rows, total, page, totalPages: Math.ceil(total / limit) })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -261,7 +271,8 @@ router.get('/models', (req, res) => {
 
 router.get('/today', async (req, res) => {
   try {
-    const words = generate({ exactly: 20 })
+    const shuffled = [...wordsArray].sort(() => Math.random() - 0.5)
+    const words = shuffled.slice(0, 20).map(w => w.toLowerCase().replace(/[^a-z]/g, '')).filter(w => w.length > 2)
 
     const [existing] = await pool.query(
       'SELECT word, marathi_meaning FROM words WHERE word IN (?)',
@@ -286,8 +297,12 @@ router.get('/today', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM my_words ORDER BY created_at DESC')
-    res.json(rows)
+    const page = Math.max(1, parseInt(req.query.page) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10))
+    const offset = (page - 1) * limit
+    const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM my_words')
+    const [rows] = await pool.query('SELECT * FROM my_words ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    res.json({ data: rows, total, page, totalPages: Math.ceil(total / limit) })
   } catch (err) {
     console.error('Error fetching words:', err)
     res.status(500).json({ error: err.message })

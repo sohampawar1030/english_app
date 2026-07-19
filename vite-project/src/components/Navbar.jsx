@@ -6,6 +6,8 @@ const links = [
   { to: '/verb-forms', label: 'Verb Forms', emoji: '📝' },
   { to: '/saved-verb-forms', label: 'Saved Verbs', emoji: '📖' },
   { to: '/my-vocab', label: 'My Vocabulary', emoji: '📚' },
+  { to: '/real-life-sentences', label: 'Life Sentences', emoji: '🌿' },
+  { to: '/corporate-sentences', label: 'Corporate Sentences', emoji: '💼' },
 ]
 
 export default function Navbar() {

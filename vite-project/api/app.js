@@ -1,6 +1,8 @@
 import express from 'express'
 import cors from 'cors'
 import wordsRouter from './routes/words.js'
+import sentencesRouter from './routes/sentences.js'
+import pool from './config/database.js'
 
 const app = express()
 
@@ -8,6 +10,18 @@ app.use(cors())
 app.use(express.json())
 
 app.use('/api/words', wordsRouter)
+app.use('/api/sentences', sentencesRouter)
+
+pool.execute(`
+  CREATE TABLE IF NOT EXISTS saved_sentences (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category VARCHAR(20) NOT NULL,
+    sentence TEXT NOT NULL,
+    translation TEXT,
+    is_important BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`).catch(err => console.error('Table creation error:', err))
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
