@@ -5,7 +5,7 @@ const router = Router()
 
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 15000)
+  const timer = setTimeout(() => controller.abort(), 25000)
   try {
     const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
       method: 'POST',

