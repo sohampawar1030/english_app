@@ -149,6 +149,61 @@ router.post('/tense', async (req, res, next) => {
   }
 })
 
+const FALLBACK_VERBS = [
+  { verb:'go', meaning:'जाणे', v1:'go', v2:'went', v3:'gone', sentence_v1:'I go to school.', sentence_v2:'I went to school.', sentence_v3:'I have gone to school.' },
+  { verb:'eat', meaning:'खाणे', v1:'eat', v2:'ate', v3:'eaten', sentence_v1:'I eat breakfast.', sentence_v2:'I ate breakfast.', sentence_v3:'I have eaten breakfast.' },
+  { verb:'run', meaning:'धावणे', v1:'run', v2:'ran', v3:'run', sentence_v1:'I run every day.', sentence_v2:'I ran yesterday.', sentence_v3:'I have run for an hour.' },
+  { verb:'speak', meaning:'बोलणे', v1:'speak', v2:'spoke', v3:'spoken', sentence_v1:'I speak English.', sentence_v2:'I spoke to her.', sentence_v3:'I have spoken to him.' },
+  { verb:'write', meaning:'लिहिणे', v1:'write', v2:'wrote', v3:'written', sentence_v1:'I write letters.', sentence_v2:'I wrote a book.', sentence_v3:'I have written an essay.' },
+  { verb:'read', meaning:'वाचणे', v1:'read', v2:'read', v3:'read', sentence_v1:'I read books.', sentence_v2:'I read that novel.', sentence_v3:'I have read many books.' },
+  { verb:'take', meaning:'घेणे', v1:'take', v2:'took', v3:'taken', sentence_v1:'I take the bus.', sentence_v2:'I took a photo.', sentence_v3:'I have taken the test.' },
+  { verb:'give', meaning:'देणे', v1:'give', v2:'gave', v3:'given', sentence_v1:'I give gifts.', sentence_v2:'I gave him money.', sentence_v3:'I have given my word.' },
+  { verb:'see', meaning:'पाहणे', v1:'see', v2:'saw', v3:'seen', sentence_v1:'I see the stars.', sentence_v2:'I saw a movie.', sentence_v3:'I have seen that film.' },
+  { verb:'come', meaning:'येणे', v1:'come', v2:'came', v3:'come', sentence_v1:'I come here daily.', sentence_v2:'I came yesterday.', sentence_v3:'I have come early.' },
+  { verb:'know', meaning:'माहित असणे', v1:'know', v2:'knew', v3:'known', sentence_v1:'I know the answer.', sentence_v2:'I knew him well.', sentence_v3:'I have known her for years.' },
+  { verb:'make', meaning:'बनवणे', v1:'make', v2:'made', v3:'made', sentence_v1:'I make coffee.', sentence_v2:'I made a cake.', sentence_v3:'I have made dinner.' },
+  { verb:'think', meaning:'विचार करणे', v1:'think', v2:'thought', v3:'thought', sentence_v1:'I think it is good.', sentence_v2:'I thought about it.', sentence_v3:'I have thought deeply.' },
+  { verb:'buy', meaning:'खरेदी करणे', v1:'buy', v2:'bought', v3:'bought', sentence_v1:'I buy groceries.', sentence_v2:'I bought a car.', sentence_v3:'I have bought a house.' },
+  { verb:'bring', meaning:'आणणे', v1:'bring', v2:'brought', v3:'brought', sentence_v1:'I bring lunch.', sentence_v2:'I brought my book.', sentence_v3:'I have brought snacks.' },
+  { verb:'teach', meaning:'शिकवणे', v1:'teach', v2:'taught', v3:'taught', sentence_v1:'I teach students.', sentence_v2:'I taught math.', sentence_v3:'I have taught for years.' },
+  { verb:'find', meaning:'शोधणे', v1:'find', v2:'found', v3:'found', sentence_v1:'I find keys.', sentence_v2:'I found a wallet.', sentence_v3:'I have found the answer.' },
+  { verb:'tell', meaning:'सांगणे', v1:'tell', v2:'told', v3:'told', sentence_v1:'I tell stories.', sentence_v2:'I told the truth.', sentence_v3:'I have told you everything.' },
+  { verb:'begin', meaning:'सुरू करणे', v1:'begin', v2:'began', v3:'begun', sentence_v1:'I begin work at 9.', sentence_v2:'I began the project.', sentence_v3:'I have begun my journey.' },
+  { verb:'understand', meaning:'समजून घेणे', v1:'understand', v2:'understood', v3:'understood', sentence_v1:'I understand the lesson.', sentence_v2:'I understood the concept.', sentence_v3:'I have understood everything.' }
+]
+
+const FALLBACK_AI_WORDS = {
+  reallife: [
+    { word: 'run', meaning: 'धावणे' }, { word: 'eat', meaning: 'खाणे' }, { word: 'sleep', meaning: 'झोपणे' },
+    { word: 'read', meaning: 'वाचणे' }, { word: 'write', meaning: 'लिहिणे' }, { word: 'speak', meaning: 'बोलणे' },
+    { word: 'listen', meaning: 'ऐकणे' }, { word: 'walk', meaning: 'चालणे' }, { word: 'think', meaning: 'विचार करणे' },
+    { word: 'learn', meaning: 'शिकणे' }, { word: 'teach', meaning: 'शिकवणे' }, { word: 'help', meaning: 'मदत करणे' },
+    { word: 'give', meaning: 'देणे' }, { word: 'take', meaning: 'घेणे' }, { word: 'bring', meaning: 'आणणे' },
+    { word: 'buy', meaning: 'खरेदी करणे' }, { word: 'sell', meaning: 'विकणे' }, { word: 'find', meaning: 'शोधणे' },
+    { word: 'keep', meaning: 'ठेवणे' }, { word: 'start', meaning: 'सुरू करणे' }, { word: 'stop', meaning: 'थांबणे' },
+    { word: 'open', meaning: 'उघडणे' }, { word: 'close', meaning: 'बंद करणे' }, { word: 'push', meaning: 'ढकलणे' },
+    { word: 'pull', meaning: 'ओढणे' }, { word: 'clean', meaning: 'स्वच्छ करणे' }, { word: 'wash', meaning: 'धुणे' },
+    { word: 'cook', meaning: 'शिजवणे' }, { word: 'drink', meaning: 'पिणे' }, { word: 'play', meaning: 'खेळणे' }
+  ],
+  corporate: [
+    { word: 'negotiate', meaning: 'वाटाघाटी करणे' }, { word: 'implement', meaning: 'अंमलबजावणी करणे' },
+    { word: 'collaborate', meaning: 'सहकार्य करणे' }, { word: 'prioritize', meaning: 'प्राधान्य देणे' },
+    { word: 'delegate', meaning: 'प्रतिनिधीत्व करणे' }, { word: 'optimize', meaning: 'ऑप्टिमाइझ करणे' },
+    { word: 'present', meaning: 'सादर करणे' }, { word: 'analyze', meaning: 'विश्लेषण करणे' },
+    { word: 'coordinate', meaning: 'समन्वय साधणे' }, { word: 'summarize', meaning: 'सारांश काढणे' },
+    { word: 'invest', meaning: 'गुंतवणूक करणे' }, { word: 'forecast', meaning: 'अंदाज करणे' },
+    { word: 'approve', meaning: 'मंजूर करणे' }, { word: 'evaluate', meaning: 'मूल्यांकन करणे' },
+    { word: 'allocate', meaning: 'वाटप करणे' }, { word: 'consolidate', meaning: 'एकत्र करणे' },
+    { word: 'demonstrate', meaning: 'प्रदर्शित करणे' }, { word: 'facilitate', meaning: 'सुलभ करणे' },
+    { word: 'integrate', meaning: 'एकत्रित करणे' }, { word: 'monitor', meaning: 'निरीक्षण करणे' },
+    { word: 'motivate', meaning: 'प्रेरित करणे' }, { word: 'negotiate', meaning: 'वाटाघाटी करणे' },
+    { word: 'organize', meaning: 'आयोजित करणे' }, { word: 'participate', meaning: 'सहभागी होणे' },
+    { word: 'quantify', meaning: 'प्रमाण ठरवणे' }, { word: 'recommend', meaning: 'शिफारस करणे' },
+    { word: 'schedule', meaning: 'वेळापत्रक ठरवणे' }, { word: 'strategize', meaning: 'रणनीती ठरवणे' },
+    { word: 'supervise', meaning: 'देखरेख करणे' }, { word: 'verify', meaning: 'पडताळणी करणे' }
+  ]
+}
+
 router.post('/ai-today', async (req, res, next) => {
   try {
     const { model = 'deepseek-v4-flash-free', type = 'reallife' } = req.body
@@ -166,7 +221,7 @@ router.post('/ai-today', async (req, res, next) => {
 
     const content = data.choices?.[0]?.message?.content || '[]'
     let words = parseJSON(content) || []
-    if (!Array.isArray(words)) words = []
+    if (!Array.isArray(words) || words.length === 0) words = FALLBACK_AI_WORDS[type] || FALLBACK_AI_WORDS.reallife
     if (words.length > count) words = words.slice(0, count)
 
     const result = []
@@ -202,16 +257,27 @@ router.post('/verb-forms/ai', async (req, res, next) => {
 
     const content = data.choices?.[0]?.message?.content || '[]'
     let verbs = parseJSON(content) || []
-    if (!Array.isArray(verbs)) verbs = []
+    if (!Array.isArray(verbs) || verbs.length === 0) verbs = FALLBACK_VERBS
     if (verbs.length > 20) verbs = verbs.slice(0, 20)
 
+    const result = []
     for (const v of verbs) {
-      if (!v.mr_v1 && v.sentence_v1) v.mr_v1 = await translateToMarathi(v.sentence_v1)
-      if (!v.mr_v2 && v.sentence_v2) v.mr_v2 = await translateToMarathi(v.sentence_v2)
-      if (!v.mr_v3 && v.sentence_v3) v.mr_v3 = await translateToMarathi(v.sentence_v3)
+      result.push({
+        verb: v.verb || '',
+        meaning: v.meaning || '',
+        v1: v.v1 || v.verb || '',
+        v2: v.v2 || (v.verb || '') + 'ed',
+        v3: v.v3 || (v.verb || '') + 'ed',
+        sentence_v1: v.sentence_v1 || '',
+        sentence_v2: v.sentence_v2 || '',
+        sentence_v3: v.sentence_v3 || '',
+        mr_v1: v.mr_v1 ? v.mr_v1 : (v.sentence_v1 ? await translateToMarathi(v.sentence_v1) : ''),
+        mr_v2: v.mr_v2 ? v.mr_v2 : (v.sentence_v2 ? await translateToMarathi(v.sentence_v2) : ''),
+        mr_v3: v.mr_v3 ? v.mr_v3 : (v.sentence_v3 ? await translateToMarathi(v.sentence_v3) : '')
+      })
     }
 
-    res.json(verbs)
+    res.json(result)
   } catch (err) { next(err) }
 })
 
@@ -338,6 +404,16 @@ router.post('/', async (req, res) => {
   }
 })
 
+const FALLBACK_SENTENCES = [
+  'I use this word in my daily life.', 'Can you show me an example?', 'This is a very common word.',
+  'I need to practice this more.', 'Please say that again.', 'I understand the meaning now.',
+  'Let me try to use this word.', 'That is a good example.', 'I will remember this word.',
+  'Can you explain this word?', 'I have seen this before.', 'This word is very useful.',
+  'I want to learn more words.', 'Please help me with this.', 'I am learning English step by step.',
+  'This sentence is easy to understand.', 'I can read this sentence.', 'I write new words in my notebook.',
+  'I listen to English every day.', 'I speak English with my friends.'
+]
+
 router.post('/generate-sentences', async (req, res, next) => {
   try {
     const { word, form = 'v1', model = 'deepseek-v4-flash-free', verb } = req.body
@@ -354,7 +430,7 @@ router.post('/generate-sentences', async (req, res, next) => {
     const content = data.choices?.[0]?.message?.content || '[]'
     let sentences = []
     try { sentences = JSON.parse(content) } catch { sentences = [] }
-    if (!Array.isArray(sentences)) sentences = []
+    if (!Array.isArray(sentences) || sentences.length === 0) sentences = FALLBACK_SENTENCES
     sentences = sentences.slice(0, 20)
 
     const result = []
