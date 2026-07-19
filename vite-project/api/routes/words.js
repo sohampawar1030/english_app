@@ -1,6 +1,8 @@
 import { Router } from 'express'
-import pool from '../config/database.js'
-import wordsArray from 'an-array-of-english-words'
+import db from '../config/database.js'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const wordsArray = require('an-array-of-english-words')
 
 const router = Router()
 
@@ -13,15 +15,24 @@ const MODELS = {
 }
 
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
-  const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + process.env.DEEPSEEK_API_KEY
-    },
-    body: JSON.stringify({ model, messages, max_tokens: maxTokens })
-  })
-  return resp.json()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+  try {
+    const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + process.env.DEEPSEEK_API_KEY
+      },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens })
+    })
+    clearTimeout(timer)
+    return resp.json()
+  } catch {
+    clearTimeout(timer)
+    return { choices: [] }
+  }
 }
 
 async function translateToMarathi(text) {
@@ -70,7 +81,7 @@ router.post('/tense', async (req, res, next) => {
 
     let meaning = ''
     try {
-      const [rows] = await pool.query('SELECT marathi_meaning FROM words WHERE word = ?', [word])
+      const rows = await db.query('SELECT marathi_meaning FROM words WHERE word = ?', [word])
       if (rows.length > 0 && rows[0].marathi_meaning) {
         meaning = rows[0].marathi_meaning
       }
@@ -209,8 +220,8 @@ router.get('/verb-forms', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10))
     const offset = (page - 1) * limit
-    const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM verb_forms')
-    const [rows] = await pool.query('SELECT * FROM verb_forms ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    const totalRows = await db.query('SELECT COUNT(*) as total FROM verb_forms'); const total = totalRows[0].total
+    const rows = await db.query('SELECT * FROM verb_forms ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
     res.json({ data: rows, total, page, totalPages: Math.ceil(total / limit) })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -221,11 +232,11 @@ router.post('/verb-forms', async (req, res) => {
   try {
     const { verb, v1, v2, v3, meaning, sentence_v1, sentence_v2, sentence_v3, mr_v1, mr_v2, mr_v3 } = req.body
     if (!verb || !v1 || !v2 || !v3) return res.status(400).json({ error: 'verb, v1, v2, v3 required' })
-    const [result] = await pool.query(
+    const result = await db.query(
       'INSERT INTO verb_forms (verb, v1, v2, v3, meaning, sentence_v1, sentence_v2, sentence_v3, mr_v1, mr_v2, mr_v3) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
       [verb, v1, v2, v3, meaning || '', sentence_v1 || null, sentence_v2 || null, sentence_v3 || null, mr_v1 || null, mr_v2 || null, mr_v3 || null]
     )
-    const [rows] = await pool.query('SELECT * FROM verb_forms WHERE id = ?', [result.insertId])
+    const rows = await db.query('SELECT * FROM verb_forms WHERE id = ?', [result.insertId])
     res.status(201).json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -234,7 +245,7 @@ router.post('/verb-forms', async (req, res) => {
 
 router.delete('/verb-forms/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM verb_forms WHERE id = ?', [req.params.id])
+    await db.query('DELETE FROM verb_forms WHERE id = ?', [req.params.id])
     res.json({ message: 'Deleted' })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -274,7 +285,7 @@ router.get('/today', async (req, res) => {
     const shuffled = [...wordsArray].sort(() => Math.random() - 0.5)
     const words = shuffled.slice(0, 20).map(w => w.toLowerCase().replace(/[^a-z]/g, '')).filter(w => w.length > 2)
 
-    const [existing] = await pool.query(
+    const existing = await db.query(
       'SELECT word, marathi_meaning FROM words WHERE word IN (?)',
       [words]
     )
@@ -300,8 +311,8 @@ router.get('/', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10))
     const offset = (page - 1) * limit
-    const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM my_words')
-    const [rows] = await pool.query('SELECT * FROM my_words ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    const totalRows = await db.query('SELECT COUNT(*) as total FROM my_words'); const total = totalRows[0].total
+    const rows = await db.query('SELECT * FROM my_words ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
     res.json({ data: rows, total, page, totalPages: Math.ceil(total / limit) })
   } catch (err) {
     console.error('Error fetching words:', err)
@@ -315,11 +326,11 @@ router.post('/', async (req, res) => {
     if (!word || !meaning) {
       return res.status(400).json({ error: 'Word and meaning are required' })
     }
-    const [result] = await pool.query(
+    const result = await db.query(
       'INSERT INTO my_words (word, meaning, example) VALUES (?, ?, ?)',
       [word, meaning, example || null]
     )
-    const [rows] = await pool.query('SELECT * FROM my_words WHERE id = ?', [result.insertId])
+    const rows = await db.query('SELECT * FROM my_words WHERE id = ?', [result.insertId])
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('Error adding word:', err)
@@ -365,7 +376,7 @@ router.post('/generate-sentences', async (req, res, next) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM my_words WHERE id = ?', [req.params.id])
+    await db.query('DELETE FROM my_words WHERE id = ?', [req.params.id])
     res.json({ message: 'Word deleted' })
   } catch (err) {
     console.error('Error deleting word:', err)

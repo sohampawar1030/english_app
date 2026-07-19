@@ -1,18 +1,27 @@
 import { Router } from 'express'
-import pool from '../config/database.js'
+import db from '../config/database.js'
 
 const router = Router()
 
 async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 4000) {
-  const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + process.env.DEEPSEEK_API_KEY
-    },
-    body: JSON.stringify({ model, messages, max_tokens: maxTokens })
-  })
-  return resp.json()
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+  try {
+    const resp = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + process.env.DEEPSEEK_API_KEY
+      },
+      body: JSON.stringify({ model, messages, max_tokens: maxTokens })
+    })
+    clearTimeout(timer)
+    return resp.json()
+  } catch {
+    clearTimeout(timer)
+    return { choices: [] }
+  }
 }
 
 function parseJSON(str) {
@@ -116,8 +125,8 @@ router.get('/', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10))
     const offset = (page - 1) * limit
-    const [[{ total }]] = await pool.query('SELECT COUNT(*) as total FROM saved_sentences WHERE category = ?', [category])
-    const [rows] = await pool.query('SELECT * FROM saved_sentences WHERE category = ? ORDER BY is_important DESC, created_at DESC LIMIT ? OFFSET ?', [category, limit, offset])
+    const totalRows = await db.query('SELECT COUNT(*) as total FROM saved_sentences WHERE category = ?', [category]); const total = totalRows[0].total
+    const rows = await db.query('SELECT * FROM saved_sentences WHERE category = ? ORDER BY is_important DESC, created_at DESC LIMIT ? OFFSET ?', [category, limit, offset])
     res.json({ data: rows, total, page, totalPages: Math.ceil(total / limit) })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -128,11 +137,11 @@ router.post('/', async (req, res) => {
   try {
     const { category, sentence, translation } = req.body
     if (!category || !sentence) return res.status(400).json({ error: 'category and sentence required' })
-    const [result] = await pool.query(
+    const result = await db.query(
       'INSERT INTO saved_sentences (category, sentence, translation) VALUES (?,?,?)',
       [category, sentence, translation || null]
     )
-    const [rows] = await pool.query('SELECT * FROM saved_sentences WHERE id = ?', [result.insertId])
+    const rows = await db.query('SELECT * FROM saved_sentences WHERE id = ?', [result.insertId])
     res.status(201).json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -141,7 +150,7 @@ router.post('/', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM saved_sentences WHERE id = ?', [req.params.id])
+    await db.query('DELETE FROM saved_sentences WHERE id = ?', [req.params.id])
     res.json({ message: 'Deleted' })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -151,8 +160,8 @@ router.delete('/:id', async (req, res) => {
 router.put('/:id/important', async (req, res) => {
   try {
     const { important } = req.body
-    await pool.query('UPDATE saved_sentences SET is_important = ? WHERE id = ?', [important ? 1 : 0, req.params.id])
-    const [rows] = await pool.query('SELECT * FROM saved_sentences WHERE id = ?', [req.params.id])
+    await db.query('UPDATE saved_sentences SET is_important = ? WHERE id = ?', [important ? 1 : 0, req.params.id])
+    const rows = await db.query('SELECT * FROM saved_sentences WHERE id = ?', [req.params.id])
     res.json(rows[0])
   } catch (err) {
     res.status(500).json({ error: err.message })

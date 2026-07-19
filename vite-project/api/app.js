@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import wordsRouter from './routes/words.js'
 import sentencesRouter from './routes/sentences.js'
-import pool from './config/database.js'
+import db from './config/database.js'
 
 const app = express()
 
@@ -12,7 +12,7 @@ app.use(express.json())
 app.use('/api/words', wordsRouter)
 app.use('/api/sentences', sentencesRouter)
 
-pool.execute(`
+db.query(`
   CREATE TABLE IF NOT EXISTS saved_sentences (
     id INT AUTO_INCREMENT PRIMARY KEY,
     category VARCHAR(20) NOT NULL,
