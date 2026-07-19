@@ -37,7 +37,22 @@ async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 40
 }
 
 function parseJSON(str) {
-  try { return JSON.parse(str) } catch { return null }
+  try { return JSON.parse(str) } catch {}
+  try {
+    const m = str.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (m) return JSON.parse(m[1].trim())
+  } catch {}
+  try {
+    const start = str.indexOf('[')
+    const end = str.lastIndexOf(']')
+    if (start !== -1 && end > start) return JSON.parse(str.slice(start, end + 1))
+  } catch {}
+  try {
+    const start = str.indexOf('{')
+    const end = str.lastIndexOf('}')
+    if (start !== -1 && end > start) return JSON.parse(str.slice(start, end + 1))
+  } catch {}
+  return null
 }
 
 async function translateToMarathi(text) {
