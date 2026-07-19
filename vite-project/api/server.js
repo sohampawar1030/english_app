@@ -11,6 +11,14 @@ import pool from './config/database.js'
 
 const PORT = process.env.PORT || 5000
 
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled rejection:', err)
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err)
+})
+
 async function start() {
   try {
     const connection = await pool.getConnection()
@@ -20,9 +28,18 @@ async function start() {
     console.error('MySQL connection failed:', err.message)
   }
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
+  })
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is in use. Retrying in 2s...`)
+      setTimeout(() => { server.close(); app.listen(PORT) }, 2000)
+    } else {
+      console.error('Server error:', err)
+    }
   })
 }
 
-start()
+start().catch(err => console.error('Startup error:', err))
