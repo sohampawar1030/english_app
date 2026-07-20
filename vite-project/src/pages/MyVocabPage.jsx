@@ -28,6 +28,8 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
       .catch(() => setLoading(false))
   }
 
+  const isMarathi = (s) => /[\u0900-\u097F]/.test(s)
+
   function handleWordChange(e) {
     const val = e.target.value
     setWord(val)
@@ -37,7 +39,13 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
       try {
         const res = await fetch(`/api/translate?q=${encodeURIComponent(val.trim())}`)
         const data = await res.json()
-        if (data.translation) setMeaning(data.translation)
+        if (data.translation) {
+          if (isMarathi(val)) {
+            setWord(data.translation); setMeaning(val)
+          } else {
+            setMeaning(data.translation)
+          }
+        }
       } catch {}
     }, 500)
   }
