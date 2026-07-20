@@ -168,13 +168,21 @@ router.post('/ai-today', async (req, res, next) => {
     const isCorporate = type === 'corporate'
     const count = 30
 
+    const saved = await db.query('SELECT word FROM my_words')
+    const existingWords = saved.map(r => r.word.toLowerCase())
+    const excludeList = existingWords.slice(0, 100).join(', ')
+
     const prompt = isCorporate
       ? `Generate ${count} English corporate/business words (verbs, adjectives, adverbs — NO nouns like "company", "manager"). Return: [{"word":"negotiate","meaning":"वाटाघाटी करणे"}, ...]`
       : `Generate ${count} real-life everyday English words (verbs, adjectives, adverbs — NO nouns like "apple", "car"). Return: [{"word":"run","meaning":"धावणे"}, ...]`
 
+    const finalPrompt = existingWords.length > 0
+      ? `DO NOT include any of these existing words: ${excludeList}\n\n${prompt}`
+      : prompt
+
     const data = await callAI([
       { role: 'system', content: 'Output ONLY a JSON array of objects with keys "word" and "meaning". No other text.' },
-      { role: 'user', content: prompt }
+      { role: 'user', content: finalPrompt }
     ], model, 3000)
 
     const content = data.choices?.[0]?.message?.content || data.error || '[]'
@@ -182,6 +190,9 @@ router.post('/ai-today', async (req, res, next) => {
     let words = parseJSON(content) || []
     if (!Array.isArray(words) || words.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
     if (words.length > count) words = words.slice(0, count)
+
+    const existingSet = new Set(existingWords)
+    words = words.filter(w => w.word && !existingSet.has(w.word.toLowerCase()))
 
     const result = []
     for (const w of words) {
@@ -209,9 +220,17 @@ router.post('/verb-forms/ai', async (req, res, next) => {
   try {
     const { model = 'deepseek-v4-flash-free' } = req.body
 
+    const saved = await db.query('SELECT verb FROM verb_forms')
+    const existingVerbs = saved.map(r => r.verb.toLowerCase())
+    const excludeList = existingVerbs.slice(0, 100).join(', ')
+
+    const prompt = existingVerbs.length > 0
+      ? `DO NOT include any of these verbs: ${excludeList}\n\nGenerate 20 common English verbs with V1 (present), V2 (past), V3 (past participle) and example sentences. Include Marathi meaning. Return JSON: [{"verb":"go","meaning":"जाणे","v1":"go","v2":"went","v3":"gone","sentence_v1":"I go to school.","sentence_v2":"I went to school.","sentence_v3":"I have gone to school."}, ...]`
+      : `Generate 20 common English verbs with V1 (present), V2 (past), V3 (past participle) and example sentences. Include Marathi meaning. Return JSON: [{"verb":"go","meaning":"जाणे","v1":"go","v2":"went","v3":"gone","sentence_v1":"I go to school.","sentence_v2":"I went to school.","sentence_v3":"I have gone to school."}, ...]`
+
     const data = await callAI([
       { role: 'system', content: 'Output ONLY valid JSON. No other text.' },
-      { role: 'user', content: `Generate 20 common English verbs with V1 (present), V2 (past), V3 (past participle) and example sentences. Include Marathi meaning. Return JSON: [{"verb":"go","meaning":"जाणे","v1":"go","v2":"went","v3":"gone","sentence_v1":"I go to school.","sentence_v2":"I went to school.","sentence_v3":"I have gone to school."}, ...]` }
+      { role: 'user', content: prompt }
     ], model, 4000)
 
     const content = data.choices?.[0]?.message?.content || data.error || '[]'
@@ -219,6 +238,9 @@ router.post('/verb-forms/ai', async (req, res, next) => {
     let verbs = parseJSON(content) || []
     if (!Array.isArray(verbs) || verbs.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
     if (verbs.length > 20) verbs = verbs.slice(0, 20)
+
+    const existingSet = new Set(existingVerbs)
+    verbs = verbs.filter(v => v.verb && !existingSet.has(v.verb.toLowerCase()))
 
     const result = []
     for (const v of verbs) {
@@ -305,29 +327,62 @@ router.get('/models', (req, res) => {
 
 router.get('/today', async (req, res) => {
   try {
-    const shuffled = [...wordsArray].sort(() => Math.random() - 0.5)
-    const words = shuffled.slice(0, 20).map(w => w.toLowerCase().replace(/[^a-z]/g, '')).filter(w => w.length > 2)
+    const saved = await db.query('SELECT word, meaning FROM my_words ORDER BY RAND() LIMIT 100')
+    const existingWords = saved.map(r => r.word.toLowerCase())
+    const existingSet = new Set(existingWords)
 
-    const existing = await db.query(
-      'SELECT word, marathi_meaning FROM words WHERE word IN (?)',
-      [words]
-    )
-    const meaningMap = {}
-    for (const w of existing) {
-      if (w.marathi_meaning) meaningMap[w.word] = w.marathi_meaning
+    const prompt = `My saved English vocabulary: ${existingWords.slice(0, 30).join(', ') || 'none'}.
+Generate 12 new English words that are COMPLETELY DIFFERENT from my saved words above. These should be useful everyday English words (verbs, adjectives, common nouns) at intermediate level — NOT rare or difficult words.
+Return ONLY a JSON array with NO extra text, in this exact format:
+[{"word":"example","meaning":"मराठी अर्थ"}]`
+
+    const result = await callAI([
+      { role: 'system', content: 'You return ONLY valid JSON.' },
+      { role: 'user', content: prompt }
+    ])
+
+    const content = result?.choices?.[0]?.message?.content
+    if (!content) return res.json(generateFallbackWords(existingSet))
+
+    let words = parseJSON(content) || []
+    if (!Array.isArray(words) || words.length === 0) return res.json(generateFallbackWords(existingSet))
+
+    const filtered = words.filter(w => w.word && w.meaning && !existingSet.has(w.word.toLowerCase())).slice(0, 12)
+
+    for (const w of filtered) {
+      if (!w.meaning || w.meaning === w.word) {
+        try {
+          const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=mr&dt=t&q=${encodeURIComponent(w.word)}`)
+          const d = await r.json()
+          w.meaning = d?.[0]?.[0]?.[0] || w.word
+        } catch { w.meaning = w.word }
+      }
     }
 
-    const result = await Promise.all(words.map(async (word) => {
-      const meaning = meaningMap[word] || await translateToMarathi(word)
-      return { word, meaning }
-    }))
-
-    res.json(result)
+    res.json(filtered.length > 0 ? filtered : generateFallbackWords(existingSet))
   } catch (err) {
-    console.error('Error fetching today words:', err)
-    res.status(500).json({ error: err.message })
+    console.error('Error generating today words:', err)
+    try {
+      const saved = await db.query('SELECT word, meaning FROM my_words ORDER BY RAND() LIMIT 100')
+      const existingSet = new Set(saved.map(r => r.word.toLowerCase()))
+      res.json(generateFallbackWords(existingSet))
+    } catch {
+      res.json([{ word: 'hello', meaning: 'नमस्कार' }, { word: 'book', meaning: 'पुस्तक' }, { word: 'water', meaning: 'पाणी' }])
+    }
   }
 })
+
+function generateFallbackWords(existingSet) {
+  const fallback = [
+    { word: 'learn', meaning: 'शिकणे' }, { word: 'work', meaning: 'काम' },
+    { word: 'write', meaning: 'लिहिणे' }, { word: 'read', meaning: 'वाचणे' },
+    { word: 'speak', meaning: 'बोलणे' }, { word: 'think', meaning: 'विचार करणे' },
+    { word: 'help', meaning: 'मदत' }, { word: 'make', meaning: 'बनवणे' },
+    { word: 'take', meaning: 'घेणे' }, { word: 'give', meaning: 'देणे' },
+    { word: 'start', meaning: 'सुरू करणे' }, { word: 'change', meaning: 'बदल' }
+  ]
+  return fallback.filter(w => !existingSet.has(w.word))
+}
 
 router.get('/', async (req, res) => {
   try {
