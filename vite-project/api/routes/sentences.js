@@ -94,8 +94,8 @@ router.post('/generate', async (req, res, next) => {
       { role: 'user', content: prompt }
     ], model, 8000)
 
-    const content = data.choices?.[0]?.message?.content || data.error || '[]'
-    if (!content || content === '[]') return res.status(500).json({ error: 'AI generation failed: ' + (data.error || 'No response from API') })
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
     let sentences = parseJSON(content) || []
     if (!Array.isArray(sentences) || sentences.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
     if (sentences.length > 40) sentences = sentences.slice(0, 40)

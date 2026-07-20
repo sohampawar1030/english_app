@@ -197,10 +197,10 @@ router.post('/ai-today', async (req, res, next) => {
       { role: 'user', content: finalPrompt }
     ], model, 3000)
 
-    const content = data.choices?.[0]?.message?.content || data.error || '[]'
-    if (!content || content === '[]') return res.status(500).json({ error: 'AI generation failed: ' + (data.error || 'No response from API') })
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
     let words = parseJSON(content) || []
-    if (!Array.isArray(words) || words.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
+    if (!Array.isArray(words) || words.length === 0) return res.status(500).json({ error: 'AI returned invalid data' + (data.error ? ' (' + data.error + ')' : '') })
     if (words.length > count) words = words.slice(0, count)
 
     const existingSet = new Set(existingWords)
@@ -245,10 +245,10 @@ router.post('/verb-forms/ai', async (req, res, next) => {
       { role: 'user', content: prompt }
     ], model, 4000)
 
-    const content = data.choices?.[0]?.message?.content || data.error || '[]'
-    if (!content || content === '[]') return res.status(500).json({ error: 'AI generation failed: ' + (data.error || 'No response from API') })
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
     let verbs = parseJSON(content) || []
-    if (!Array.isArray(verbs) || verbs.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
+    if (!Array.isArray(verbs) || verbs.length === 0) return res.status(500).json({ error: 'AI returned invalid data' + (data.error ? ' (' + data.error + ')' : '') })
     if (verbs.length > 20) verbs = verbs.slice(0, 20)
 
     const existingSet = new Set(existingVerbs)
@@ -320,8 +320,8 @@ router.post('/verb-forms/generate', async (req, res, next) => {
       { role: 'user', content: `Generate verb forms for the English verb "${verb}". Return JSON: {"verb":"${verb}","meaning":"(Marathi meaning)","v1":"(present form)","v2":"(past form)","v3":"(past participle)","sentence_v1":"(example sentence)","sentence_v2":"(example sentence)","sentence_v3":"(example sentence)"}` }
     ], model, 2000)
 
-    const content = data.choices?.[0]?.message?.content || data.error || '{}'
-    if (!content || content === '{}') return res.status(500).json({ error: 'AI generation failed: ' + (data.error || 'No response from API') })
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
     let v = parseJSON(content)
     if (!v || !v.v1 || !v.v2 || !v.v3) return res.status(500).json({ error: 'AI returned invalid verb data' })
 
@@ -445,8 +445,8 @@ router.post('/generate-sentences', async (req, res, next) => {
       { role: 'user', content: `Generate 20 short English sentences using the word "${displayWord}" in ${label} form (${word}). Make them simple and natural. Return: ["sentence 1", "sentence 2", ...]` }
     ], model, 3000)
 
-    const content = data.choices?.[0]?.message?.content || data.error || '[]'
-    if (!content || content === '[]') return res.status(500).json({ error: 'AI generation failed: ' + (data.error || 'No response from API') })
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
     let sentences = []
     try { sentences = JSON.parse(content) } catch { return res.status(500).json({ error: 'AI returned invalid JSON' }) }
     if (!Array.isArray(sentences) || sentences.length === 0) return res.status(500).json({ error: 'AI returned empty array' })
