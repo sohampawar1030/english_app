@@ -25,10 +25,14 @@ async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 40
     })
     clearTimeout(timer)
     if (!resp.ok) {
-      console.error('[AI] HTTP', resp.status, await resp.text())
-      return { choices: [], error: 'HTTP ' + resp.status }
+      const text = await resp.text()
+      console.error('[AI] HTTP', resp.status, text)
+      return { choices: [], error: 'AI service error (HTTP ' + resp.status + ')' }
     }
-    return resp.json()
+    const text = await resp.text()
+    try { return JSON.parse(text) } catch {
+      return { choices: [], error: 'AI returned invalid response' }
+    }
   } catch (err) {
     clearTimeout(timer)
     console.error('[AI] Error:', err?.message || err)
