@@ -48,6 +48,46 @@ async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 40
   }
 }
 
+const FALLBACK_SENTENCES_REALLIFE = [
+  'I wake up early every morning.','She eats breakfast at 8 o\'clock.','He goes to work by bus.',
+  'They watch TV in the evening.','We play cricket on weekends.','My mother cooks delicious food.',
+  'The children go to school daily.','I drink coffee in the morning.','She reads books before sleeping.',
+  'He takes a shower after exercise.','They visit their grandparents every Sunday.',
+  'We enjoy watching movies together.','The sun rises in the east.','I brush my teeth twice a day.',
+  'She wears a blue dress today.','He helps his father in the garden.','The dog runs in the park.',
+  'I call my mother every evening.','She listens to music while working.','He waits for the bus at the stop.',
+  'They play football in the ground.','We eat dinner together at 9 pm.','I study English every day.',
+  'She writes letters to her friend.','He drives his car carefully.','The baby sleeps in the afternoon.',
+  'I buy vegetables from the market.','She sings songs in the bathroom.','He washes his clothes on Sunday.',
+  'They dance at the party.','We talk about our day at dinner.','I love spending time with family.',
+  'She opens the window every morning.','He closes the door before leaving.','The birds sing in the trees.',
+  'I water the plants daily.','She cleans her room every weekend.','He fixes his bicycle by himself.',
+  'They laugh at funny jokes.','We learn new things every day.'
+]
+
+const FALLBACK_SENTENCES_CORPORATE = [
+  'Please send me the report by Friday.','Let\'s schedule a meeting for next week.',
+  'I need to review the budget proposal.','The deadline is approaching quickly.',
+  'We should prioritize this project.','Can you please update the status?',
+  'I will follow up with the client.','The team worked efficiently on this task.',
+  'Let\'s discuss this in the next meeting.','Please share your feedback on the document.',
+  'We need to improve our workflow.','The quarterly results look promising.',
+  'I appreciate your hard work on this.','Let me know if you have any questions.',
+  'We are looking for innovative solutions.','The presentation went very well.',
+  'Please confirm your availability for Monday.','I will prepare the necessary documents.',
+  'Let\'s analyze the data carefully.','We need to reduce operational costs.',
+  'The training session starts at 10 am.','Please submit your timesheet by Friday.',
+  'I will coordinate with the team.','The project is on track for completion.',
+  'We need to address these issues.','Let me introduce our new team member.',
+  'The conference was very productive.','Please review the attached proposal.',
+  'I look forward to your response.','Let\'s brainstorm ideas for the campaign.',
+  'We have achieved our quarterly targets.','The audit identified some improvements.',
+  'Please approve the purchase order.','I will arrange the logistics for the event.',
+  'Let\'s maintain clear communication.','The system upgrade is scheduled for next month.',
+  'We value your contribution to the team.','Please ensure all documents are signed.',
+  'I will delegate tasks to the team.','Let\'s celebrate our success together.'
+]
+
 function parseJSON(str) {
   try { return JSON.parse(str) } catch {}
   try {
@@ -95,9 +135,10 @@ router.post('/generate', async (req, res, next) => {
     ], model, 8000)
 
     const content = data.choices?.[0]?.message?.content
-    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
-    let sentences = parseJSON(content) || []
-    if (!Array.isArray(sentences) || sentences.length === 0) return res.status(500).json({ error: 'AI returned invalid data' })
+    let sentences = content ? (parseJSON(content) || []) : []
+    if (!Array.isArray(sentences) || sentences.length === 0) {
+      sentences = isCorporate ? [...FALLBACK_SENTENCES_CORPORATE] : [...FALLBACK_SENTENCES_REALLIFE]
+    }
     if (sentences.length > 40) sentences = sentences.slice(0, 40)
 
     const result = []

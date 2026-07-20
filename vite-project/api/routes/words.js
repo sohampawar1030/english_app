@@ -72,6 +72,113 @@ async function translateToMarathi(text) {
   }
 }
 
+const FALLBACK_WORDS_REALLIFE = [
+  'learn','teach','build','create','think','choose','bring','buy','call','carry',
+  'clean','climb','close','cook','cross','dance','draw','dream','drink','drive',
+  'enjoy','enter','examine','explain','finish','follow','gather','grow','guess','help',
+  'hope','imagine','improve','invite','jump','kick','knock','laugh','lift','listen',
+  'love','measure','move','need','offer','open','paint','pick','plan','plant',
+  'play','point','pull','push','reach','remember','repeat','ride','save','share',
+  'show','shut','sing','smile','spend','stand','start','stay','stop','study',
+  'talk','thank','touch','travel','try','turn','use','visit','wait','walk',
+  'wash','watch','wish','work','worry','write','accept','allow','answer','appear',
+  'arrive','ask','become','begin','believe','belong','break','care','change','collect'
+]
+
+const FALLBACK_WORDS_CORPORATE = [
+  'negotiate','delegate','collaborate','prioritize','strategize','implement','facilitate','coordinate','optimize','streamline',
+  'present','propose','analyze','evaluate','forecast','budget','allocate','authorize','approve','review',
+  'submit','process','schedule','organize','manage','lead','supervise','mentor','train','develop',
+  'network','communicate','present','persuade','resolve','mediate','compromise','innovate','design','launch',
+  'promote','market','sell','pitch','acquire','merge','invest','expand','improve','standardize'
+]
+
+const FALLBACK_VERBS = [
+  { verb:'go',meaning:'जाणे',v1:'go',v2:'went',v3:'gone',sentence_v1:'I go to school.',sentence_v2:'I went to school.',sentence_v3:'I have gone to school.' },
+  { verb:'eat',meaning:'खाणे',v1:'eat',v2:'ate',v3:'eaten',sentence_v1:'I eat breakfast.',sentence_v2:'I ate breakfast.',sentence_v3:'I have eaten breakfast.' },
+  { verb:'write',meaning:'लिहिणे',v1:'write',v2:'wrote',v3:'written',sentence_v1:'I write letters.',sentence_v2:'I wrote a letter.',sentence_v3:'I have written a letter.' },
+  { verb:'speak',meaning:'बोलणे',v1:'speak',v2:'spoke',v3:'spoken',sentence_v1:'I speak English.',sentence_v2:'I spoke to him.',sentence_v3:'I have spoken to her.' },
+  { verb:'take',meaning:'घेणे',v1:'take',v2:'took',v3:'taken',sentence_v1:'I take a bus.',sentence_v2:'I took a taxi.',sentence_v3:'I have taken the test.' },
+  { verb:'give',meaning:'देणे',v1:'give',v2:'gave',v3:'given',sentence_v1:'I give gifts.',sentence_v2:'I gave him money.',sentence_v3:'I have given my opinion.' },
+  { verb:'see',meaning:'पाहणे',v1:'see',v2:'saw',v3:'seen',sentence_v1:'I see the bird.',sentence_v2:'I saw a movie.',sentence_v3:'I have seen that film.' },
+  { verb:'come',meaning:'येणे',v1:'come',v2:'came',v3:'come',sentence_v1:'I come here daily.',sentence_v2:'I came yesterday.',sentence_v3:'I have come to help.' },
+  { verb:'know',meaning:'माहित असणे',v1:'know',v2:'knew',v3:'known',sentence_v1:'I know the answer.',sentence_v2:'I knew him well.',sentence_v3:'I have known her for years.' },
+  { verb:'think',meaning:'विचार करणे',v1:'think',v2:'thought',v3:'thought',sentence_v1:'I think about you.',sentence_v2:'I thought about it.',sentence_v3:'I have thought carefully.' },
+  { verb:'make',meaning:'बनवणे',v1:'make',v2:'made',v3:'made',sentence_v1:'I make coffee.',sentence_v2:'I made a cake.',sentence_v3:'I have made a decision.' },
+  { verb:'find',meaning:'शोधणे',v1:'find',v2:'found',v3:'found',sentence_v1:'I find keys.',sentence_v2:'I found a wallet.',sentence_v3:'I have found the solution.' },
+  { verb:'tell',meaning:'सांगणे',v1:'tell',v2:'told',v3:'told',sentence_v1:'I tell stories.',sentence_v2:'I told the truth.',sentence_v3:'I have told everyone.' },
+  { verb:'show',meaning:'दाखवणे',v1:'show',v2:'showed',v3:'shown',sentence_v1:'I show my work.',sentence_v2:'I showed my ticket.',sentence_v3:'I have shown my ID.' },
+  { verb:'keep',meaning:'ठेवणे',v1:'keep',v2:'kept',v3:'kept',sentence_v1:'I keep records.',sentence_v2:'I kept the receipt.',sentence_v3:'I have kept my promise.' },
+  { verb:'begin',meaning:'सुरू करणे',v1:'begin',v2:'began',v3:'begun',sentence_v1:'I begin my day.',sentence_v2:'I began the project.',sentence_v3:'I have begun the work.' },
+  { verb:'bring',meaning:'आणणे',v1:'bring',v2:'brought',v3:'brought',sentence_v1:'I bring lunch.',sentence_v2:'I brought water.',sentence_v3:'I have brought food.' },
+  { verb:'buy',meaning:'खरेदी करणे',v1:'buy',v2:'bought',v3:'bought',sentence_v1:'I buy groceries.',sentence_v2:'I bought a phone.',sentence_v3:'I have bought a house.' },
+  { verb:'teach',meaning:'शिकवणे',v1:'teach',v2:'taught',v3:'taught',sentence_v1:'I teach students.',sentence_v2:'I taught math.',sentence_v3:'I have taught for years.' },
+  { verb:'build',meaning:'बांधणे',v1:'build',v2:'built',v3:'built',sentence_v1:'I build houses.',sentence_v2:'I built a table.',sentence_v3:'I have built a career.' }
+]
+
+const FALLBACK_SENTENCES_REALLIFE = [
+  'I wake up early every morning.','She eats breakfast at 8 o\'clock.','He goes to work by bus.',
+  'They watch TV in the evening.','We play cricket on weekends.','My mother cooks delicious food.',
+  'The children go to school daily.','I drink coffee in the morning.','She reads books before sleeping.',
+  'He takes a shower after exercise.','They visit their grandparents every Sunday.',
+  'We enjoy watching movies together.','The sun rises in the east.','I brush my teeth twice a day.',
+  'She wears a blue dress today.','He helps his father in the garden.','The dog runs in the park.',
+  'I call my mother every evening.','She listens to music while working.','He waits for the bus at the stop.',
+  'They play football in the ground.','We eat dinner together at 9 pm.','I study English every day.',
+  'She writes letters to her friend.','He drives his car carefully.','The baby sleeps in the afternoon.',
+  'I buy vegetables from the market.','She sings songs in the bathroom.','He washes his clothes on Sunday.',
+  'They dance at the party.','We talk about our day at dinner.','I love spending time with family.',
+  'She opens the window every morning.','He closes the door before leaving.','The birds sing in the trees.',
+  'I water the plants daily.','She cleans her room every weekend.','He fixes his bicycle by himself.',
+  'They laugh at funny jokes.','We learn new things every day.'
+]
+
+const FALLBACK_SENTENCES_CORPORATE = [
+  'Please send me the report by Friday.','Let\'s schedule a meeting for next week.',
+  'I need to review the budget proposal.','The deadline is approaching quickly.',
+  'We should prioritize this project.','Can you please update the status?',
+  'I will follow up with the client.','The team worked efficiently on this task.',
+  'Let\'s discuss this in the next meeting.','Please share your feedback on the document.',
+  'We need to improve our workflow.','The quarterly results look promising.',
+  'I appreciate your hard work on this.','Let me know if you have any questions.',
+  'We are looking for innovative solutions.','The presentation went very well.',
+  'Please confirm your availability for Monday.','I will prepare the necessary documents.',
+  'Let\'s analyze the data carefully.','We need to reduce operational costs.',
+  'The training session starts at 10 am.','Please submit your timesheet by Friday.',
+  'I will coordinate with the team.','The project is on track for completion.',
+  'We need to address these issues.','Let me introduce our new team member.',
+  'The conference was very productive.','Please review the attached proposal.',
+  'I look forward to your response.','Let\'s brainstorm ideas for the campaign.',
+  'We have achieved our quarterly targets.','The audit identified some improvements.',
+  'Please approve the purchase order.','I will arrange the logistics for the event.',
+  'Let\'s maintain clear communication.','The system upgrade is scheduled for next month.',
+  'We value your contribution to the team.','Please ensure all documents are signed.',
+  'I will delegate tasks to the team.','Let\'s celebrate our success together.'
+]
+
+const FALLBACK_VERB_SENTENCES = [
+  'I practice this word daily.',
+  'This word is very useful.',
+  'I use this word in sentences.',
+  'Learning words helps me speak better.',
+  'I remember this word now.',
+  'This is an important English word.',
+  'I can make sentences with this word.',
+  'I write this word in my notebook.',
+  'Reading helps me learn new words.',
+  'I understand the meaning of this word.',
+  'I say this word many times.',
+  'I try to use new words every day.',
+  'This word makes my English better.',
+  'I like learning new vocabulary.',
+  'I repeat this word to remember it.',
+  'My English is improving every day.',
+  'I share new words with my friends.',
+  'I study vocabulary in the morning.',
+  'I feel happy when I learn new words.',
+  'I will use this word in a conversation.'
+]
+
 function parseJSON(str) {
   try { return JSON.parse(str) } catch {}
   try {
@@ -198,13 +305,18 @@ router.post('/ai-today', async (req, res, next) => {
     ], model, 3000)
 
     const content = data.choices?.[0]?.message?.content
-    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
-    let words = parseJSON(content) || []
-    if (!Array.isArray(words) || words.length === 0) return res.status(500).json({ error: 'AI returned invalid data' + (data.error ? ' (' + data.error + ')' : '') })
-    if (words.length > count) words = words.slice(0, count)
-
-    const existingSet = new Set(existingWords)
-    words = words.filter(w => w.word && !existingSet.has(w.word.toLowerCase()))
+    let words = []
+    if (content) {
+      words = parseJSON(content) || []
+      if (words.length > count) words = words.slice(0, count)
+      const existingSet = new Set(existingWords)
+      words = words.filter(w => w.word && !existingSet.has(w.word.toLowerCase()))
+    }
+    if (words.length === 0) {
+      const source = isCorporate ? FALLBACK_WORDS_CORPORATE : FALLBACK_WORDS_REALLIFE
+      const available = source.filter(w => !existingWords.includes(w))
+      words = available.slice(0, count).map(w => ({ word: w, meaning: '' }))
+    }
 
     const result = []
     for (const w of words) {
@@ -246,13 +358,15 @@ router.post('/verb-forms/ai', async (req, res, next) => {
     ], model, 4000)
 
     const content = data.choices?.[0]?.message?.content
-    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
-    let verbs = parseJSON(content) || []
-    if (!Array.isArray(verbs) || verbs.length === 0) return res.status(500).json({ error: 'AI returned invalid data' + (data.error ? ' (' + data.error + ')' : '') })
+    let verbs = content ? (parseJSON(content) || []) : []
+    if (!Array.isArray(verbs)) verbs = []
     if (verbs.length > 20) verbs = verbs.slice(0, 20)
-
     const existingSet = new Set(existingVerbs)
     verbs = verbs.filter(v => v.verb && !existingSet.has(v.verb.toLowerCase()))
+
+    if (verbs.length === 0) {
+      verbs = FALLBACK_VERBS.filter(v => !existingVerbs.includes(v.verb))
+    }
 
     const result = []
     for (const v of verbs) {
@@ -263,9 +377,9 @@ router.post('/verb-forms/ai', async (req, res, next) => {
         sentence_v1: v.sentence_v1 || '',
         sentence_v2: v.sentence_v2 || '',
         sentence_v3: v.sentence_v3 || '',
-        mr_v1: v.mr_v1 || (v.sentence_v1 ? await translateToMarathi(v.sentence_v1) : ''),
-        mr_v2: v.mr_v2 || (v.sentence_v2 ? await translateToMarathi(v.sentence_v2) : ''),
-        mr_v3: v.mr_v3 || (v.sentence_v3 ? await translateToMarathi(v.sentence_v3) : '')
+        mr_v1: v.mr_v1 || '',
+        mr_v2: v.mr_v2 || '',
+        mr_v3: v.mr_v3 || ''
       })
     }
 
@@ -321,13 +435,16 @@ router.post('/verb-forms/generate', async (req, res, next) => {
     ], model, 2000)
 
     const content = data.choices?.[0]?.message?.content
-    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
-    let v = parseJSON(content)
-    if (!v || !v.v1 || !v.v2 || !v.v3) return res.status(500).json({ error: 'AI returned invalid verb data' })
+    let v = content ? parseJSON(content) : null
+    if (!v || !v.v1 || !v.v2 || !v.v3) {
+      const base = verb.toLowerCase()
+      v = { verb: base, meaning: base, v1: base, v2: base + 'ed', v3: base + 'ed',
+        sentence_v1: 'I ' + base + ' every day.', sentence_v2: 'I ' + base + 'ed yesterday.', sentence_v3: 'I have ' + base + 'ed.' }
+    }
 
-    v.mr_v1 = v.mr_v1 || await translateToMarathi(v.sentence_v1 || 'I ' + v.v1 + '.')
-    v.mr_v2 = v.mr_v2 || await translateToMarathi(v.sentence_v2 || 'I ' + v.v2 + '.')
-    v.mr_v3 = v.mr_v3 || await translateToMarathi(v.sentence_v3 || 'I have ' + v.v3 + '.')
+    if (!v.mr_v1) { try { v.mr_v1 = await translateToMarathi(v.sentence_v1 || 'I ' + v.v1 + '.') } catch {} }
+    if (!v.mr_v2) { try { v.mr_v2 = await translateToMarathi(v.sentence_v2 || 'I ' + v.v2 + '.') } catch {} }
+    if (!v.mr_v3) { try { v.mr_v3 = await translateToMarathi(v.sentence_v3 || 'I have ' + v.v3 + '.') } catch {} }
 
     res.json(v)
   } catch (err) { next(err) }
@@ -446,10 +563,13 @@ router.post('/generate-sentences', async (req, res, next) => {
     ], model, 3000)
 
     const content = data.choices?.[0]?.message?.content
-    if (!content) return res.status(500).json({ error: 'AI generation failed' + (data.error ? ': ' + data.error : '') })
     let sentences = []
-    try { sentences = JSON.parse(content) } catch { return res.status(500).json({ error: 'AI returned invalid JSON' }) }
-    if (!Array.isArray(sentences) || sentences.length === 0) return res.status(500).json({ error: 'AI returned empty array' })
+    if (content) {
+      try { sentences = JSON.parse(content) } catch { sentences = parseJSON(content) || [] }
+    }
+    if (!Array.isArray(sentences) || sentences.length === 0) {
+      sentences = FALLBACK_VERB_SENTENCES.map(s => s.replace(/this word/gi, displayWord))
+    }
     sentences = sentences.slice(0, 20)
 
     const result = []
