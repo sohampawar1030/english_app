@@ -37,7 +37,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
       setWord(''); setMeaning(val)
       timerRef.current = setTimeout(async () => {
         try {
-          const res = await fetch(`/api/translate?q=${encodeURIComponent(val.trim())}&sl=mr&tl=en`)
+          const res = await fetch(`/api/translate?q=${encodeURIComponent(val.trim())}&tl=en`)
           const data = await res.json()
           if (data.translation) setWord(data.translation)
         } catch {}

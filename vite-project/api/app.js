@@ -31,13 +31,13 @@ app.get('/api/translate', async (req, res) => {
   try {
     const word = req.query.q
     if (!word) return res.status(400).json({ error: 'q required' })
-    const sl = req.query.sl || ( /[\u0900-\u097F]/.test(word) ? 'mr' : 'en' )
-    const tl = req.query.tl || ( sl === 'mr' ? 'en' : 'mr' )
+    const sl = req.query.sl || 'auto'
+    const tl = req.query.tl || ( /[\u0900-\u097F]/.test(word) ? 'en' : 'mr' )
     const resp = await fetch(
       `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(word)}`
     )
     const data = await resp.json()
-    res.json({ translation: data?.[0]?.[0]?.[0] || word, detected: sl })
+    res.json({ translation: data?.[0]?.[0]?.[0] || word, detected: data?.[2] || sl })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
