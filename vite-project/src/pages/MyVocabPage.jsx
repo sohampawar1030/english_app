@@ -130,20 +130,18 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
             <thead>
               <tr>
                 <th style={thStyle}>Word</th>
-                <th style={thStyle}>Meaning (मराठी)</th>
                 <th style={thStyle}>Added</th>
-                <th style={{ ...thStyle, width: '90px' }}>Translate</th>
+                <th style={{ ...thStyle, width: '80px' }}>Translate</th>
                 <th style={{ ...thStyle, width: '50px' }}></th>
               </tr>
             </thead>
             <tbody>
               {words.map(w => (
                 <tr key={w.id}>
-                  <td style={{ ...cellStyle, fontWeight: 600, color: '#111' }}>{w.word}</td>
-                  <td style={cellStyle}>
-                    {w.meaning}
+                  <td style={{ ...cellStyle, fontWeight: 600, color: '#111' }}>
+                    {w.word}
                     {translations[w.id] && (
-                      <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '2px' }}>→ {translations[w.id]}</div>
+                      <div style={{ fontSize: '13px', color: '#16a34a', marginTop: '3px', fontWeight: 400 }}>→ {translations[w.id]}</div>
                     )}
                   </td>
                   <td style={cellStyle}>{new Date(w.created_at).toLocaleDateString()}</td>
