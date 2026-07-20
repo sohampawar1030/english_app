@@ -9,6 +9,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   const [loading, setLoading] = useState(true)
   const [word, setWord] = useState('')
   const [meaning, setMeaning] = useState('')
+  const [mode, setMode] = useState('en-mr')
   const timerRef = useRef(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -28,26 +29,29 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
       .catch(() => setLoading(false))
   }
 
-  const isMarathi = (s) => /[\u0900-\u097F]/.test(s)
-
-  function handleWordChange(e) {
+  function handleInputChange(e) {
     const val = e.target.value
-    setWord(val)
     if (timerRef.current) clearTimeout(timerRef.current)
-    if (!val.trim()) { setMeaning(''); return }
-    timerRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/translate?q=${encodeURIComponent(val.trim())}`)
-        const data = await res.json()
-        if (data.translation) {
-          if (isMarathi(val)) {
-            setWord(data.translation); setMeaning(val)
-          } else {
-            setMeaning(data.translation)
-          }
-        }
-      } catch {}
-    }, 500)
+    if (!val.trim()) { setWord(''); setMeaning(''); return }
+    if (mode === 'mr-en') {
+      setWord(''); setMeaning(val)
+      timerRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/translate?q=${encodeURIComponent(val.trim())}&sl=mr&tl=en`)
+          const data = await res.json()
+          if (data.translation) setWord(data.translation)
+        } catch {}
+      }, 500)
+    } else {
+      setWord(val); setMeaning('')
+      timerRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`/api/translate?q=${encodeURIComponent(val.trim())}`)
+          const data = await res.json()
+          if (data.translation) setMeaning(data.translation)
+        } catch {}
+      }, 500)
+    }
   }
 
   async function addWord(e) {
@@ -69,15 +73,30 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
     setWords(prev => prev.filter(w => w.id !== id))
   }
 
+  const tabStyle = (active) => ({
+    padding: '8px 18px', fontSize: '14px', borderRadius: '8px 8px 0 0', border: 'none',
+    background: active ? '#7c3aed' : '#f3f4f6', color: active ? '#fff' : '#666',
+    cursor: 'pointer', fontWeight: 600
+  })
+
+  const isMrMode = mode === 'mr-en'
+
   return (
     <div style={{ padding: '24px', maxWidth: '960px', margin: '0 auto' }}>
       <h1 style={{ fontSize: '28px', marginBottom: '4px' }}> My Vocabulary</h1>
-      <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>तुझे जतन केलेले शब्द — Word टाइप करा, Meaning auto translate होईल</p>
+      <p style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>तुझे जतन केलेले शब्द</p>
 
-      <form onSubmit={addWord} style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        <input value={word} onChange={handleWordChange} placeholder="Type a word..." required
+      <div style={{ display: 'flex', gap: '0', marginBottom: '0' }}>
+        <button onClick={() => { setMode('en-mr'); setWord(''); setMeaning('') }} style={tabStyle(mode === 'en-mr')}>English → मराठी</button>
+        <button onClick={() => { setMode('mr-en'); setWord(''); setMeaning('') }} style={tabStyle(mode === 'mr-en')}>मराठी → English</button>
+      </div>
+
+      <form onSubmit={addWord} style={{ display: 'flex', gap: '8px', padding: '16px', background: '#f9fafb', borderRadius: '0 8px 8px 8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <input value={isMrMode ? meaning : word} onChange={handleInputChange}
+          placeholder={isMrMode ? 'मराठी शब्द टाइप करा...' : 'Type English word...'} required
           style={{ flex: '1', minWidth: '200px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px' }} />
-        <input value={meaning} onChange={e => setMeaning(e.target.value)} placeholder="Auto-translates..." required
+        <input value={isMrMode ? word : meaning} onChange={e => isMrMode ? setWord(e.target.value) : setMeaning(e.target.value)}
+          placeholder={isMrMode ? 'English auto-translate...' : 'मराठी auto-translate...'} required
           style={{ flex: '1', minWidth: '200px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px', color: '#16a34a' }} />
         <button type="submit" style={{ padding: '10px 24px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
       </form>
