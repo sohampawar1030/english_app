@@ -30,7 +30,15 @@ async function callAI(messages, model = 'deepseek-v4-flash-free', maxTokens = 40
       return { choices: [], error: 'AI service error (HTTP ' + resp.status + ')' }
     }
     const text = await resp.text()
-    try { return JSON.parse(text) } catch {
+    try {
+      const parsed = JSON.parse(text)
+      if (!parsed.choices || parsed.choices.length === 0) {
+        const errMsg = parsed.error?.message || parsed.error || 'empty response'
+        console.error('[AI] Empty choices:', errMsg)
+        return { choices: [], error: 'No response from AI (' + errMsg + ')' }
+      }
+      return parsed
+    } catch {
       return { choices: [], error: 'AI returned invalid response' }
     }
   } catch (err) {
