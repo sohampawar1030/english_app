@@ -6,9 +6,6 @@ export const MODELS = [
   { id: 'hy3-free', name: 'Hy3 Free' },
   { id: 'nemotron-3-ultra-free', name: 'Nemotron 3 Ultra Free' },
   { id: 'north-mini-code-free', name: 'North Mini Code Free' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
 ]
 
 export function ModelSelector({ model, onChange }) {
