@@ -13,11 +13,15 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   const timerRef = useRef(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [error, setError] = useState('')
+  const [translatingId, setTranslatingId] = useState(null)
+  const [translations, setTranslations] = useState({})
 
   useEffect(() => { fetchWords() }, [page])
 
   function fetchWords() {
     setLoading(true)
+    setError('')
     fetch(`/api/words?page=${page}&limit=10`)
       .then(r => r.json())
       .then(res => {
@@ -32,6 +36,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   function handleInputChange(e) {
     const val = e.target.value
     if (timerRef.current) clearTimeout(timerRef.current)
+    setError('')
     if (!val.trim()) { setWord(''); setMeaning(''); return }
     if (mode === 'mr-en') {
       setWord(''); setMeaning(val)
@@ -56,11 +61,16 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
 
   async function addWord(e) {
     e.preventDefault()
+    setError('')
     if (!word || !meaning) return
     const res = await fetch('/api/words', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ word, meaning })
     })
+    if (res.status === 409) {
+      setError(`"${word}" already exists in your vocabulary!`)
+      return
+    }
     if (res.ok) {
       onAdded(word.toLowerCase())
       setWord(''); setMeaning('')
@@ -71,6 +81,16 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   async function deleteWord(id) {
     await fetch(`/api/words/${id}`, { method: 'DELETE' })
     setWords(prev => prev.filter(w => w.id !== id))
+  }
+
+  async function translateWord(w) {
+    setTranslatingId(w.id)
+    try {
+      const res = await fetch(`/api/translate?q=${encodeURIComponent(w.word)}`)
+      const data = await res.json()
+      setTranslations(prev => ({ ...prev, [w.id]: data.translation }))
+    } catch {}
+    setTranslatingId(null)
   }
 
   const tabStyle = (active) => ({
@@ -91,7 +111,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
         <button onClick={() => { setMode('mr-en'); setWord(''); setMeaning('') }} style={tabStyle(mode === 'mr-en')}>मराठी → English</button>
       </div>
 
-      <form onSubmit={addWord} style={{ display: 'flex', gap: '8px', padding: '16px', background: '#f9fafb', borderRadius: '0 8px 8px 8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      <form onSubmit={addWord} style={{ display: 'flex', gap: '8px', padding: '16px', background: '#f9fafb', borderRadius: '0 8px 8px 8px', marginBottom: '4px', flexWrap: 'wrap' }}>
         <input value={isMrMode ? meaning : word} onChange={handleInputChange}
           placeholder={isMrMode ? 'मराठी शब्द टाइप करा...' : 'Type English word...'} required
           style={{ flex: '1', minWidth: '200px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px' }} />
@@ -100,6 +120,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
           style={{ flex: '1', minWidth: '200px', padding: '10px 14px', border: '1px solid #ddd', borderRadius: '8px', fontSize: '15px', color: '#16a34a' }} />
         <button type="submit" style={{ padding: '10px 24px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
       </form>
+      {error && <p style={{ color: '#ef4444', fontSize: '13px', margin: '0 0 12px 0' }}>{error}</p>}
 
       {loading ? <p>Loading...</p> : words.length === 0 ? (
         <p style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>No words yet. Type a word above and Add!</p>
@@ -111,6 +132,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
                 <th style={thStyle}>Word</th>
                 <th style={thStyle}>Meaning (मराठी)</th>
                 <th style={thStyle}>Added</th>
+                <th style={{ ...thStyle, width: '90px' }}>Translate</th>
                 <th style={{ ...thStyle, width: '50px' }}></th>
               </tr>
             </thead>
@@ -118,8 +140,19 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
               {words.map(w => (
                 <tr key={w.id}>
                   <td style={{ ...cellStyle, fontWeight: 600, color: '#111' }}>{w.word}</td>
-                  <td style={cellStyle}>{w.meaning}</td>
+                  <td style={cellStyle}>
+                    {w.meaning}
+                    {translations[w.id] && (
+                      <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '2px' }}>→ {translations[w.id]}</div>
+                    )}
+                  </td>
                   <td style={cellStyle}>{new Date(w.created_at).toLocaleDateString()}</td>
+                  <td style={cellStyle}>
+                    <button onClick={() => translateWord(w)} disabled={translatingId === w.id}
+                      style={{ background: '#f3f4f6', border: '1px solid #ddd', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px', color: '#7c3aed' }}>
+                      {translatingId === w.id ? '...' : 'Translate'}
+                    </button>
+                  </td>
                   <td style={cellStyle}>
                     <button onClick={() => deleteWord(w.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>x</button>
                   </td>

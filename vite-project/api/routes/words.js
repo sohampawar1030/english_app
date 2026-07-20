@@ -349,6 +349,10 @@ router.post('/', async (req, res) => {
     if (!word || !meaning) {
       return res.status(400).json({ error: 'Word and meaning are required' })
     }
+    const existing = await db.query('SELECT id FROM my_words WHERE word = ?', [word])
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'Word already exists!' })
+    }
     const result = await db.query(
       'INSERT INTO my_words (word, meaning, example) VALUES (?, ?, ?)',
       [word, meaning, example || null]
