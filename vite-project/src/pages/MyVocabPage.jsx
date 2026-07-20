@@ -84,6 +84,10 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   }
 
   async function translateWord(w) {
+    if (translations[w.id]) {
+      setTranslations(prev => { const n = { ...prev }; delete n[w.id]; return n })
+      return
+    }
     setTranslatingId(w.id)
     try {
       const res = await fetch(`/api/translate?q=${encodeURIComponent(w.word)}`)
