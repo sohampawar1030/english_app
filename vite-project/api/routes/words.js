@@ -518,9 +518,23 @@ router.get('/', async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10))
     const offset = (page - 1) * limit
+    const filter = req.query.filter || 'all'
+
     const totalRows = await db.query('SELECT COUNT(*) as total FROM my_words'); const total = totalRows[0].total
-    const rows = await db.query('SELECT * FROM my_words ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
-    res.json({ data: rows, total, page, totalPages: Math.ceil(total / limit) })
+    const newRows = await db.query('SELECT COUNT(*) as c FROM my_words WHERE created_at >= NOW() - INTERVAL 3 DAY'); const newCount = newRows[0].c
+    const oldCount = total - newCount
+
+    let rows
+    if (filter === 'new') {
+      rows = await db.query('SELECT * FROM my_words WHERE created_at >= NOW() - INTERVAL 3 DAY ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    } else if (filter === 'old') {
+      rows = await db.query('SELECT * FROM my_words WHERE created_at < NOW() - INTERVAL 3 DAY ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    } else {
+      rows = await db.query('SELECT * FROM my_words ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset])
+    }
+
+    const filterTotal = filter === 'new' ? newCount : (filter === 'old' ? oldCount : total)
+    res.json({ data: rows, total, newCount, oldCount, page, totalPages: Math.ceil(filterTotal / limit) })
   } catch (err) {
     console.error('Error fetching words:', err)
     res.status(500).json({ error: err.message })

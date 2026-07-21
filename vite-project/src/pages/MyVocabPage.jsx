@@ -13,21 +13,28 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
   const timerRef = useRef(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
+  const [newCount, setNewCount] = useState(0)
+  const [oldCount, setOldCount] = useState(0)
+  const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
   const [translatingId, setTranslatingId] = useState(null)
   const [translations, setTranslations] = useState({})
 
-  useEffect(() => { fetchWords() }, [page])
+  useEffect(() => { fetchWords() }, [page, filter])
 
   function fetchWords() {
     setLoading(true)
     setError('')
-    fetch(`/api/words?page=${page}&limit=10`)
+    fetch(`/api/words?page=${page}&limit=10&filter=${filter}`)
       .then(r => r.json())
       .then(res => {
         const list = Array.isArray(res) ? res : (res.data || [])
         setWords(list)
         setTotalPages(Array.isArray(res) ? 1 : (res.totalPages || 1))
+        setTotalCount(res.total || 0)
+        setNewCount(res.newCount || 0)
+        setOldCount(res.oldCount || 0)
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -74,7 +81,7 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
     if (res.ok) {
       onAdded(word.toLowerCase())
       setWord(''); setMeaning('')
-      setPage(1); fetchWords()
+      setFilter('all'); setPage(1); fetchWords()
     }
   }
 
@@ -125,6 +132,21 @@ export default function MyVocabPage({ myWordSet, onAdded }) {
         <button type="submit" style={{ padding: '10px 24px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}>+ Add</button>
       </form>
       {error && <p style={{ color: '#ef4444', fontSize: '13px', margin: '0 0 12px 0' }}>{error}</p>}
+
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
+        <span style={{ padding: '6px 14px', borderRadius: '6px', background: '#f3f4f6', fontWeight: 600 }}>Total: {totalCount}</span>
+        <span style={{ padding: '6px 14px', borderRadius: '6px', background: '#dcfce7', color: '#166534', fontWeight: 600 }}>New (3 days): {newCount}</span>
+        <span style={{ padding: '6px 14px', borderRadius: '6px', background: '#fef3c7', color: '#92400e', fontWeight: 600 }}>Old (revise): {oldCount}</span>
+      </div>
+
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '12px' }}>
+        {['all','new','old'].map(f => (
+          <button key={f} onClick={() => { setFilter(f); setPage(1) }}
+            style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: filter === f ? '#7c3aed' : '#f3f4f6', color: filter === f ? '#fff' : '#666', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+            {f === 'all' ? 'All Words' : f === 'new' ? 'New Words' : 'Old Words'}
+          </button>
+        ))}
+      </div>
 
       {loading ? <p>Loading...</p> : words.length === 0 ? (
         <p style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>No words yet. Type a word above and Add!</p>
